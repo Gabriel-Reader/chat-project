@@ -1,22 +1,27 @@
+"""
+===============================================================================
+SISTEMA DE CHAT TCP - SERVIDOR
+===============================================================================
+Descrição: Servidor TCP que gerencia múltiplos clientes para o serviço de chat de texto
+Autor: Gabriel Pinheiro, Renan Hurtado
+Data: 2025-06-11
+Versão: 1.2.0
+"""
+
 import socket
 import threading
 import sys
 
 HOST = '127.0.0.1'  # localhost
-PORT = 12345  # porta
-
-"""
-lock= threading.Lock()          # cria uma chave
-lock_lista_clientes.acquire()   # cliente solicita a chave
-lock_lista_clientes.release()   # cliente libera a chave
-"""
+PORT = 12345        # porta
 
 clientes_lock = threading.Lock()
 clientes_conectados = []
 
+
 def adicionar_cliente(cliente_info):
         clientes_conectados.append(cliente_info)
-        print(f"✅ Cliente adicionado: {cliente_info['nome_usuario']} {cliente_info['endereco']}")
+        print(f" ✅ Cliente adicionado: {cliente_info['nome_usuario']} {cliente_info['endereco']}")
         print(f"📊 Total de clientes conectados: {len(clientes_conectados)}")
 
 
@@ -41,7 +46,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
         print(f'O nome de usuário recebido do cliente foi: {nome_usuario}')
 
         # Envia confirmação de boas-vindas
-        mensagem_boas_vindas = f"Olá {nome_usuario}, bem-vindo ao servidor!"
+        mensagem_boas_vindas = f"Olá {nome_usuario}, seu usuário foi criado com sucesso!"
         socket_cliente.sendall(mensagem_boas_vindas.encode())
 
 
@@ -59,11 +64,10 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
             data = socket_cliente.recv(1024)
             if not data:
                 break
-            print(f"Recebido de {endereco_cliente}: {data.decode()}")
-            data_resposta = f"Olá {data.decode().strip()}, bem vindo!"
+            print(f"Recebido de {nome_usuario}: {data.decode()}")
+            data_resposta = f"Olá {data.decode().strip()}, seja bem vindo!"
             nome_usuario = data.decode().strip()
             socket_cliente.sendall(data_resposta.encode())
-
 
 
 # programa principal

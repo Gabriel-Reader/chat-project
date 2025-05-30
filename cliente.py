@@ -1,4 +1,15 @@
+"""
+===============================================================================
+SISTEMA DE CHAT TCP - SERVIDOR
+===============================================================================
+Descrição: Servidor TCP que gerencia múltiplos clientes simultaneamente
+Autor: Gabriel Pinheiro
+Data: 2025-05-30
+Versão: 1.2.0
+===============================================================================
+"""
 import socket
+
 
 HOST = '127.0.0.1'  # endereço do servidor
 PORT = 12345        # mesma porta do servidor

@@ -1,0 +1,190 @@
+┌──────────────────────────────────────────────────────────────────────┐
+│ SERVIDOR TCP MULTITHREAD                                             │
+├──────────────────────────────────────────────────────────────────────┤
+│ Sistema que aceita múltiplos clientes simultaneamente usando TCP.    │
+│ Cada conexão roda em thread separada para não bloquear o servidor.   │
+└──────────────────────────────────────────────────────────────────────┘
+
+# ┌─────────────────────────────────────────────────────────────┐
+# │ INICIO DA EXPLICAÇÃO SOBRE .LOCK()                          │
+# └─────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ THREAD SAFETY                                                        │
+├──────────────────────────────────────────────────────────────────────┤
+│ Usa threading.Lock() para proteger lista de clientes conectados.     │
+│ Evita condições de corrida quando múltiplas threads acessam dados.   │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ THREADING LOCK - CONCEITO DE MUTEX                                   │
+├──────────────────────────────────────────────────────────────────────┤
+│ Lock() cria um mutex (mutual exclusion) - apenas uma thread por vez. │
+│ Funciona como uma "chave única" que controla acesso a recursos.      │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ACQUIRE() - SOLICITAÇÃO DE ACESSO                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│ acquire() tenta obter o lock - bloqueia se outra thread já possui.   │
+│ Thread fica "esperando na fila" até o lock ser liberado pela atual.  │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ RELEASE() - LIBERAÇÃO DO RECURSO                                     │
+├──────────────────────────────────────────────────────────────────────┤
+│ release() libera o lock permitindo que outras threads acessem.       │
+│ Sempre deve ser chamado após acquire() - padrão acquire/release.     │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ SEÇÃO CRÍTICA                                                        │
+├──────────────────────────────────────────────────────────────────────┤
+│ Código entre acquire() e release() é a "seção crítica".              │
+│ Apenas uma thread executa essa seção por vez - exclusão mútua.       │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ RACE CONDITION PREVENTION                                            │
+├──────────────────────────────────────────────────────────────────────┤
+│ Evita condições de corrida ao modificar clientes_conectados[].       │
+│ Sem lock: threads podem corromper lista ao modificar simultaneamente.│
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ PADRÃO WITH STATEMENT PARA LOCKS                                     │
+├──────────────────────────────────────────────────────────────────────┤
+│ 'with clientes_lock:' automatiza acquire() e release().              │
+│ Garante liberação mesmo se exceção ocorrer dentro do bloco.          │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ DEADLOCK PREVENTION                                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│ Sempre usar timeout ou with statement para evitar deadlocks.         │
+│ Lock não liberado trava todas as outras threads indefinidamente.     │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ PERFORMANCE IMPACT                                                   │
+├──────────────────────────────────────────────────────────────────────┤
+│ Lock serializa acesso - threads esperam uma após outra.              │
+│ Minimizar tempo dentro da seção crítica para melhor performance.     │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ SHARED RESOURCE PROTECTION                                           │
+├──────────────────────────────────────────────────────────────────────┤
+│ clientes_conectados[] é recurso compartilhado entre todas as threads.│
+│ Lock protege integridade dos dados durante leitura/escrita/modificação│
+└──────────────────────────────────────────────────────────────────────┘
+
+# ┌─────────────────────────────────────────────────────────────┐
+# │ FIM DA EXPLICAÇÃO SOBRE .LOCK()                             │
+# └─────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ COMUNICAÇÃO BIDIRECIONAL                                             │
+├──────────────────────────────────────────────────────────────────────┤
+│ Loop infinito recebe mensagens do cliente e envia respostas.         │
+│ Gerencia desconexões graciosamente com try/except e timeout.         │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ PROTOCOLO TCP/IP                                                     │
+├──────────────────────────────────────────────────────────────────────┤
+│ Usa socket TCP para comunicação confiável entre cliente e servidor.  │
+│ HOST='127.0.0.1' (localhost) e PORT=12345 para conexão local.        │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ CONTEXT MANAGER (WITH STATEMENT)                                     │
+├──────────────────────────────────────────────────────────────────────┤
+│ 'with socket.socket()' garante fechamento automático da conexão.     │
+│ Evita vazamentos de recursos mesmo em caso de erro ou exceção.       │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ HANDSHAKE DE AUTENTICAÇÃO                                            │
+├──────────────────────────────────────────────────────────────────────┤
+│ Servidor solicita nome → Cliente responde → Servidor confirma.       │
+│ Processo sequencial usando recv(1024) e sendall() para sincronia.    │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ CODIFICAÇÃO/DECODIFICAÇÃO                                            │
+├──────────────────────────────────────────────────────────────────────┤
+│ Strings convertidas para bytes com .encode() antes do envio.         │
+│ Bytes recebidos convertidos para string com .decode() após recv().   │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ GERENCIAMENTO DE ESTADO                                              │
+├──────────────────────────────────────────────────────────────────────┤
+│ Lista 'clientes_conectados[]' mantém registro de todos os usuários.  │
+│ Dicionário com socket, endereço e nome para cada cliente ativo.      │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ TRATAMENTO DE EXCEÇÕES                                               │
+├──────────────────────────────────────────────────────────────────────┤
+│ try/except para capturar Ctrl+C, timeout e erros de conexão.         │
+│ Bloco finally garante limpeza de recursos ao encerrar programa.      │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ BUFFER DE COMUNICAÇÃO                                                │
+├──────────────────────────────────────────────────────────────────────┤
+│ Buffer fixo de 1024 bytes para recv() limita tamanho das mensagens.  │
+│ sendall() garante envio completo dos dados, mesmo em múltiplos TCP.  │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ TIMEOUT DO SOCKET                                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│ settimeout(1.0) permite interrupção do accept() a cada segundo.      │
+│ Essencial para processar sinais do sistema (Ctrl+C) rapidamente.     │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ARQUITETURA CLIENTE-SERVIDOR                                         │
+├──────────────────────────────────────────────────────────────────────┤
+│ Servidor: escuta passivamente por conexões na porta especificada.    │
+│ Cliente: conecta ativamente ao servidor e inicia comunicação.        │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ BINDING E LISTENING                                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│ bind() associa o socket ao endereço HOST:PORT específico.            │
+│ listen() coloca servidor em modo de escuta para aceitar conexões.    │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ACCEPT() BLOQUEANTE                                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│ accept() bloqueia até cliente conectar, retorna socket e endereço.   │
+│ Cada accept() cria novo socket dedicado para aquele cliente.         │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ESTRUTURA DE DADOS CLIENTE                                           │
+├──────────────────────────────────────────────────────────────────────┤
+│ Dicionário cliente_info{} armazena socket, endereço e nome_usuario.  │
+│ Lista clientes_conectados[] mantém todos os clientes ativos.         │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ VALIDAÇÃO DE DADOS                                                   │
+├──────────────────────────────────────────────────────────────────────┤
+│ Verifica 'if not data:' para detectar desconexão do cliente.         │
+│ strip() remove espaços em branco do nome de usuário recebido.        │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ GERENCIAMENTO DE MEMÓRIA                                             │
+├──────────────────────────────────────────────────────────────────────┤
+│ Função adicionar_cliente() encapsula lógica de inserção na lista.    │
+│ Não há remoção explícita - clientes ficam na lista indefinidamente.  │
+└──────────────────────────────────────────────────────────────────────┘
+
