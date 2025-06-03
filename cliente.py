@@ -32,6 +32,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
 
     # Recebe a resposta de confirmação do servidor
     resposta = socket_cliente.recv(1024)
+    print("\n───────────────────────────────────────────────────────────────────")
     print(f"Resposta do servidor: {resposta.decode()}")
 
     while True:
