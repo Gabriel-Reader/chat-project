@@ -24,8 +24,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
     mensagem_servidor = socket_cliente.recv(1024)
     print(mensagem_servidor.decode())
 
+    while True:
+        nome_usuario = input("Por favor, informe o seu nome de usuário:  (2-15 caracteres): ")
+        if len(nome_usuario) > 15:
+            print("❌ Nome muito longo! Máximo 15 caracteres.")
+        if len(nome_usuario) <2:
+            print("❌ Nome muito curto! Minimo 2 caracteres.")
+        else:
+            print("✅ Nome válido!")
+            break
+
+
     # Pede ao usuário para digitar o nome
-    nome_usuario = input()
+    # nome_usuario = input()
 
     # Envia o nome de usuário para o servidor
     socket_cliente.sendall(nome_usuario.encode())
@@ -37,9 +48,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
 
     while True:
         mensagem = input("Digite sua mensagem: ")
-        if mensagem.lower() == "exit" or mensagem.lower() == "sair":
+        if mensagem.lower() == "/exit" or mensagem.lower() == "/sair":
+            print('SAIU')
             break
         socket_cliente.sendall(mensagem.encode())
         data = socket_cliente.recv(1024)
 
-print(f"Resposta do servidor: {data.decode()}")
+#print(f"Resposta do servidor: {data.decode()}")
