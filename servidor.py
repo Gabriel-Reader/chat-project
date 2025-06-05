@@ -18,6 +18,9 @@ PORT = 12345
 clientes_lock = threading.Lock()
 clientes_conectados = []
 
+grupos_ativos = []
+grupos_lock = threading.Lock()
+
 
 def adicionar_cliente(cliente_info):
     """Adiciona um novo cliente à lista de conectados."""
@@ -57,6 +60,29 @@ def consultar_clientes_conectados():
         print("\n" + "─" * 67 + "\n")
 
 
+def criar_grupo(nome_grupo, participantes):
+    """Cria um novo grupo com uma lista de clientes participantes"""
+    with grupos_lock:
+        grupo = {
+            "nome_grupo": nome_grupo,
+            "participantes": participantes
+        }
+
+        grupos_ativos.append(grupo)
+        print(f"O grupo {grupo['nome_grupo']} foi criado com sucesso!")
+
+    # grupos_ativos [ {
+    #     'nome_grupo': 'Equipe de Desenvolvimento',
+    #     'participantes': [
+    #         ('Gabriel', '124.12.12.0:21323'),
+    #         ('Renan', '192.168.1.100:50000'),
+    #         ('Ana', '10.0.0.5:12345')
+    #     ]
+    # }
+    #]
+
+
+
 def gerenciar_cliente(socket_cliente, endereco_cliente):
     """Gerencia a comunicação com um cliente específico em thread separada."""
 
@@ -91,7 +117,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 # Recebe dados do cliente
                 data = socket_cliente.recv(1024)
 
-                # verificaa se o cliente se desconectou
+                # verifica se o cliente se desconectou
                 if not data:
                     remover_cliente(cliente_info)
                     break
