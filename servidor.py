@@ -10,67 +10,72 @@ Versão: 1.2.0
 
 import socket
 import threading
-import sys
 import keyboard
 
-HOST = '127.0.0.1'  # localhost
-PORT = 12345        # porta
+HOST = '127.0.0.1'
+PORT = 12345
 
 clientes_lock = threading.Lock()
 clientes_conectados = []
 
 
 def adicionar_cliente(cliente_info):
+    """Adiciona um novo cliente à lista de conectados."""
     clientes_conectados.append(cliente_info)
-    #print("\n" + "─" * 67)
+
     print(f"✅ Cliente adicionado: {cliente_info['nome_usuario']} {cliente_info['endereco']}")
     print(f"📊 Total de clientes conectados: {len(clientes_conectados)}")
     print("─" * 67 + "\n")
 
 
 def remover_cliente(cliente_info):
+    """Remove um cliente da lista de conectados."""
     with clientes_lock:
+        usuario = cliente_info['nome_usuario']
         if cliente_info in clientes_conectados:
-            print(f"O usuário {cliente_info['nome_usuario']} se desconectou.")
+            print(f"📴 O usuário {usuario} se desconectou.")
             clientes_conectados.remove(cliente_info)
 
 
 def consultar_clientes_conectados():
-    print("\n─────────────────────── CLIENTES CONECTADOS ───────────────────────\n")
+    """Exibe a lista formatada de todos os clientes conectados."""
+    print(f"\n{"─"*23} CLIENTES CONECTADOS {"─"*23}\n")
+
     with clientes_lock:
         if not clientes_conectados:
             print("❌ Nenhum cliente conectado.\n")
         else:
+            # Cabeçalho da tabela
             print(f'{'#':<4} {'USUÁRIO':<20} {'ENDEREÇO':<45}')
             print('='*44)
+
+            # Lista os clientes
             for indice,cliente in enumerate(clientes_conectados, 1):
                 endereco_str = f'{cliente['endereco'][0]}:{cliente['endereco'][1]}'
                 print(f"{indice:<4} {cliente['nome_usuario']:<20} 📫  {endereco_str:<2}")
+
         print("\n" + "─" * 67 + "\n")
 
 
 def gerenciar_cliente(socket_cliente, endereco_cliente):
+    """Gerencia a comunicação com um cliente específico em thread separada."""
+
     try:
         with socket_cliente:
-            # O 'with' habilita o socket do cliente dentro do bloco
-            # quando o bloco terminar, o socket é fechado
-
             print("\n" + "─" * 67)
-            print(f"Nova conexão: {endereco_cliente}")
+            print(f"🔗 Nova conexão: {endereco_cliente}")
 
-            # envia a solicitação do nome de usuário ao cliente
-            pedir_nome_usuario = f"\nOlá, seja bem vindo! "
-            socket_cliente.sendall(pedir_nome_usuario.encode())
+            # envia mensagem de boas vindas
+            mensagem_boas_vindas = f"\nOlá, seja bem vindo! "
+            socket_cliente.sendall(mensagem_boas_vindas.encode())
 
             # recebe o nome de usuário do cliente
             nome_usuario_data = socket_cliente.recv(1024)
-
-            # guarda o nome de usuário fornecido pelo cliente
             nome_usuario = nome_usuario_data.decode().strip()
 
-            # Envia confirmação de boas-vindas
-            mensagem_boas_vindas = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-            socket_cliente.sendall(mensagem_boas_vindas.encode())
+            # confirma criação do usuário
+            mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+            socket_cliente.sendall(mensagem_confirmacao.encode())
 
             # cria o registro dicionário do cliente
             with clientes_lock:
@@ -81,25 +86,32 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 }
                 adicionar_cliente(cliente_info)
 
+
             while True:
+                # Recebe dados do cliente
                 data = socket_cliente.recv(1024)
+
+                # verificaa se o cliente se desconectou
                 if not data:
                     remover_cliente(cliente_info)
                     break
-                print(f"Recebido de {nome_usuario}: {data.decode()}")
 
-                # verificaa se o cliente se desconectou
-                if data.decode().lower().strip() in ['/exit', '/sair', '/quit', '/disconnect']:
+                mensagem_recebida = data.decode()
+                print(f"Recebido de {nome_usuario}: {mensagem_recebida}")
+
+                # verifica comandos de desconexão
+                data_comando = data.decode().lower().strip()
+
+                if data_comando in ['/exit', '/sair', '/quit', '/disconnect']:
                     print(f"O cliente: {nome_usuario} se desconectou.")
                     remover_cliente(cliente_info)
-                    return  # Sai da função
-                    # socket_cliente.shutdown(socket.SHUT_RDWR)
-                    # socket_cliente.close()
+                    return
 
-                data_resposta = f"Eco: {data.decode()}"
+                # Envia resposta (eco)
+                data_resposta = f"Eco: {mensagem_recebida}"
                 socket_cliente.sendall(data_resposta.encode())
 
-                # verifica se uma combinação de tecla foi pressionada
+                # verifica hotkey para consultar clientes
                 if keyboard.is_pressed('ctrl+shift+b'):
                     consultar_clientes_conectados()
 
@@ -113,48 +125,55 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
     finally:
            remover_cliente(cliente_info)
 
-# hotkeys usadas para o servidor
+
+"""Configuração Hotkeys"""
 keyboard.add_hotkey('ctrl+shift+b', consultar_clientes_conectados)
 
 
 
+"""Programa principal que inicia e gerencia o servidor."""
 
-# ┌───────────────────────────────────────┐
-# │ PROGRAMA PRINCIPAL                    │
-# └───────────────────────────────────────┘
 try:
     # O uso do 'with' garante que socket_servidor.close() seja chamado no final
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_servidor:
+
         socket_servidor.bind((HOST, PORT))
         socket_servidor.listen()
-        # timeout para o socket do servidor ---
-        socket_servidor.settimeout(0.1)
+        socket_servidor.settimeout(0.1)  # Timeout para verificar hotkeys
+
+        """ interface do servidor """
         print(f"✔ Servidor TCP iniciado em {HOST}:{PORT}...\n")
-        print(f"═════════════════════ Menu ══════════════════════")
-        print(f"  Ctrl+Shift+B: Consultar clientes conectados")
-        print(f"  Ctrl+C no terminal: Encerrar o servidor")
+        print(f"🔷════════════════════ Menu ═════════════════════🔷")
+        print(f" 1 - Consultar clientes conectados (Ctrl+Shift+B:)")
+        print(f" 2 - Encerrar o servidor (Ctrl+C)")
+        print(f"🔷═══════════════════════════════════════════════🔷")
 
 
-        while True:  # O loop principal do servidor
+        """O loop principal do servidor"""
+        while True:
             try:
-                socket_cliente, endereco_cliente = socket_servidor.accept()  # aceita a conexão do cliente
+                # aceita a conexão do cliente
+                socket_cliente, endereco_cliente = socket_servidor.accept()
 
-                # criar e iniciar a thread do cliente
-                thread = threading.Thread(target=gerenciar_cliente, args=(socket_cliente, endereco_cliente))
-                thread.daemon = True  # Thread será finalizada automaticamente
+                # cria e inicia a thread do cliente
+                thread = threading.Thread(
+                    target=gerenciar_cliente, args=(socket_cliente, endereco_cliente)
+                )
+                thread.daemon = True
                 thread.start()
 
             except socket.timeout:
-                # O 'continue' faz o loop 'while True' rodar novamente,
-                # permitindo que o Python processe o sinal de KeyboardInterrupt (Ctrl+C).
+                # timeout necessário para o servidor verificar teclas de atalhos
                 continue
 
 
 except KeyboardInterrupt:
     print("\n⚠️  Servidor interrompido pelo terminal (Ctrl+C)")
-    sys.exit()
 except Exception as e:
     print(f" ❌ Erro no servidor: {e}")
 finally:
-    # O socket_servidor é fechado automaticamente ao sair do bloco 'with'
-    print("\n\n============ Servidor encerrado ============\n\n")
+    print("\n\n============ SERVIDOR ENCERRADO ============\n\n")
+
+
+# socket_cliente.shutdown(socket.SHUT_RDWR)
+# socket_cliente.close()

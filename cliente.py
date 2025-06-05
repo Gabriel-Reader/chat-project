@@ -1,20 +1,9 @@
-"""
-===============================================================================
-SISTEMA DE CHAT TCP - SERVIDOR
-===============================================================================
-Descrição: Servidor TCP que gerencia múltiplos clientes simultaneamente
-Autor: Gabriel Pinheiro
-Data: 2025-05-30
-Versão: 1.2.0
-===============================================================================
-"""
 import socket
 
 
 HOST = '127.0.0.1'  # endereço do servidor
 PORT = 12345        # mesma porta do servidor
 
-# nome_usuario = input("Informe o seu nome de usuário: ")
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
     # conecta o cliente ao servidor
@@ -35,23 +24,18 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
             break
 
 
-    # Pede ao usuário para digitar o nome
-    # nome_usuario = input()
-
     # Envia o nome de usuário para o servidor
     socket_cliente.sendall(nome_usuario.encode())
 
     # Recebe a resposta de confirmação do servidor
     resposta = socket_cliente.recv(1024)
-    print("\n───────────────────────────────────────────────────────────────────")
+    print(f"\n{"─" * 67}")
     print(f"Resposta do servidor: {resposta.decode()}")
 
     while True:
         mensagem = input("Digite sua mensagem: ")
         if mensagem.lower() == "/exit" or mensagem.lower() == "/sair":
-            print('SAIU')
+            print('Você se desconectou!')
             break
         socket_cliente.sendall(mensagem.encode())
         data = socket_cliente.recv(1024)
-
-#print(f"Resposta do servidor: {data.decode()}")
