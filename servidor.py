@@ -82,7 +82,6 @@ def criar_grupo(nome_grupo, participantes):
     #]
 
 
-
 def gerenciar_cliente(socket_cliente, endereco_cliente):
     """Gerencia a comunicação com um cliente específico em thread separada."""
 
@@ -95,13 +94,50 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
             mensagem_boas_vindas = f"\nOlá, seja bem vindo! "
             socket_cliente.sendall(mensagem_boas_vindas.encode())
 
-            # recebe o nome de usuário do cliente
-            nome_usuario_data = socket_cliente.recv(1024)
-            nome_usuario = nome_usuario_data.decode().strip()
+            """Controla a execução do while"""
+            bool_usuario_invalido = True
+
+            while bool_usuario_invalido:
+                """recebe o nome de usuário do cliente"""
+                nome_usuario_data = socket_cliente.recv(1024)
+                nome_usuario = nome_usuario_data.decode().strip()
+
+                if clientes_conectados:
+                    nome_existe = False
+
+                    for cliente in clientes_conectados:
+                        usuario_conectado = f'{cliente['nome_usuario']}'
+
+                        if nome_usuario == usuario_conectado:
+                            print(f"\n{endereco_cliente}: O nome de usuário fornecido não estava disponível")
+                            print("Solicitando novo nome de usuário...\n")
+
+                            mensagem_resposta = f"nome_usuario is False"
+                            socket_cliente.sendall(mensagem_resposta.encode())
+                            nome_existe = True
+                            break
+
+                    if not nome_existe:
+                        print(f"{endereco_cliente}: ✔ Nome de usuário disponível\n")
+
+                        mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                        socket_cliente.sendall(mensagem_confirmacao.encode())
+                        bool_usuario_invalido = False
+                        break
+
+                else:
+                    """Primeiro usuário, então o nome está disponível"""
+                    print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
+
+                    mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                    socket_cliente.sendall(mensagem_confirmacao.encode())
+                    bool_usuario_invalido = False
+                    break
+
 
             # confirma criação do usuário
-            mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-            socket_cliente.sendall(mensagem_confirmacao.encode())
+            # mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+            # socket_cliente.sendall(mensagem_confirmacao.encode())
 
             # cria o registro dicionário do cliente
             with clientes_lock:
@@ -134,7 +170,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                     return
 
                 # Envia resposta (eco)
-                data_resposta = f"Eco: {mensagem_recebida}"
+                data_resposta = " "
                 socket_cliente.sendall(data_resposta.encode())
 
                 # verifica hotkey para consultar clientes

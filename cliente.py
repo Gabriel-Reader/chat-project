@@ -18,17 +18,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
         elif len(nome_usuario) <2:
             print("❌ Nome muito curto! Minimo 2 caracteres.")
         else:
-            print("\n✅ Nome válido!")
-            break
+            # Envia o nome de usuário para o servidor e recebe a confimação
+            socket_cliente.sendall(nome_usuario.encode())
+            resposta_servidor = socket_cliente.recv(1024)
+            resposta_servidor = resposta_servidor.decode()
 
+            if resposta_servidor == 'nome_usuario is False':
+                print("\n⛔ Nome de usuário não disponível\n")
+            else:
+                print("\n✅ Nome válido!")
+                print(f"\n{"─" * 67}")
+                print(f"Resposta do servidor: {resposta_servidor}")
+                break
 
-    # Envia o nome de usuário para o servidor
-    socket_cliente.sendall(nome_usuario.encode())
-
-    # Recebe a resposta de confirmação do servidor
-    resposta = socket_cliente.recv(1024)
-    print(f"\n{"─" * 67}")
-    print(f"Resposta do servidor: {resposta.decode()}")
 
     while True:
         mensagem = input("Digite sua mensagem: ")
