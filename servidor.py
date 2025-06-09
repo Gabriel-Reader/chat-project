@@ -94,7 +94,8 @@ def criar_grupo(nome_grupo, participantes):
     # }
     #]
 
-def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem):
+
+def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem, socket_remetente):
     """Envia uma mensagem para todos os participantes de um grupo"""
     mensagem = f"[{nome_grupo}] {nome_usuario}: {mensagem}"
 
@@ -102,9 +103,50 @@ def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem):
         if grupo['nome_grupo'] == nome_grupo:
 
             for participante in grupo['participantes']:
-                nome_usuario, socket_cliente = participante
-                socket_cliente.sendall(mensagem.encode())
-                # print(mensagem
+                nome_usuario, socket_participante = participante
+
+                # Não envia a mensagem de volta para o remetente
+                if socket_participante != socket_remetente:
+                    socket_participante.sendall(mensagem.encode())
+                    # print(mensagem
+
+
+def validar_nome_usuario(socket_cliente, endereco_cliente):
+    """Valida o nome de usuário recebido do cliente."""
+    try:
+        while True:
+            nome_usuario_data = socket_cliente.recv(1024)
+            nome_usuario = nome_usuario_data.decode().strip()
+
+            with clientes_lock:
+                if clientes_conectados:
+                    nome_existe = False
+
+                    for cliente in clientes_conectados:
+                        usuario_conectado = cliente['nome_usuario']
+
+                        if nome_usuario == usuario_conectado:
+                            mensagem_resposta = "nome_usuario is False"
+                            socket_cliente.sendall(mensagem_resposta.encode())
+                            nome_existe = True
+                            break
+
+                    if not nome_existe:
+                        print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
+                        mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                        socket_cliente.sendall(mensagem_confirmacao.encode())
+                        return nome_usuario # Nome válido, retorna
+
+                else:
+                    # Primeiro usuário, então o nome está disponível
+                    print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
+                    mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                    socket_cliente.sendall(mensagem_confirmacao.encode())
+                    return nome_usuario # Nome válido, retorna
+
+    except Exception as e:
+        print(f"❌ Ocorreu um erro ao tentar validar o nome de usuário do cliente {endereco_cliente}: {e}")
+        return None
 
 
 def gerenciar_cliente(socket_cliente, endereco_cliente):
@@ -119,44 +161,10 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
             mensagem_boas_vindas = f"\nOlá, seja bem vindo! "
             socket_cliente.sendall(mensagem_boas_vindas.encode())
 
-            #Controla a execução do while
-            bool_usuario_invalido = True
-
-            while bool_usuario_invalido:
-                #recebe o nome de usuário do cliente
-                nome_usuario_data = socket_cliente.recv(1024)
-                nome_usuario = nome_usuario_data.decode().strip()
-
-                if clientes_conectados:
-                    nome_existe = False
-
-                    for cliente in clientes_conectados:
-                        usuario_conectado = f'{cliente['nome_usuario']}'
-
-                        if nome_usuario == usuario_conectado:
-                            # print(f"\n{endereco_cliente}: O nome de usuário fornecido não estava disponível")
-
-                            mensagem_resposta = f"nome_usuario is False"
-                            socket_cliente.sendall(mensagem_resposta.encode())
-                            nome_existe = True
-                            break
-
-                    if not nome_existe:
-                        print(f"{endereco_cliente}: ✔ Nome de usuário disponível\n")
-
-                        mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-                        socket_cliente.sendall(mensagem_confirmacao.encode())
-                        bool_usuario_invalido = False
-                        break
-
-                else:
-                    #Primeiro usuário, então o nome está disponível
-                    print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
-
-                    mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-                    socket_cliente.sendall(mensagem_confirmacao.encode())
-                    bool_usuario_invalido = False
-                    break
+            # Chama a nova função para validar o nome de usuário
+            nome_usuario = validar_nome_usuario(socket_cliente, endereco_cliente)
+            if nome_usuario is None:  # Se a validação falhou ou o cliente desconectou
+                return  # Encerra a thread do cliente
 
             # cria o registro dicionário do cliente
             with clientes_lock:
@@ -167,7 +175,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 }
                 adicionar_cliente(cliente_info)
 
-            """
+
             grupo = {
                     'nome_grupo': 'equipe',
                     'participantes': [
@@ -176,7 +184,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 }
 
             grupos_ativos.append(grupo)
-            """
+
 
             while True:
                 # Recebe dados do cliente
@@ -191,13 +199,14 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 print(f"Recebido de {nome_usuario}: {mensagem_recebida}")
 
                 # verifica comandos de desconexão
-                data_comando = data.decode().lower().strip()
+                data = data.decode()
+                data_comando = data.lower().strip()
 
                 if data_comando in ['/exit', '/sair', '/quit', '/disconnect']:
                     remover_cliente(cliente_info)
                     return
 
-                # envia_mensagem_grupo("equipe", nome_usuario, "Olá grupo")
+                envia_mensagem_grupo("equipe", nome_usuario, data, socket_cliente)
 
                 # Envia resposta constante (eco)
                 data_resposta = " "
