@@ -3,10 +3,12 @@
 SISTEMA DE CHAT TCP - SERVIDOR
 ===============================================================================
 Descrição: Servidor TCP que gerencia múltiplos clientes para o serviço de chat de texto
-Autor: Gabriel Pinheiro, Renan Hurtado
-Data: 2025-06-11
-Versão: 1.2.0
+Autores: Gabriel Pinheiro, Renan Hurtado
 """
+
+#TODO: Criei um teste com um grupo pré criado, todos os clientes que se conectarem no servidor
+# vão entrar no grupo, se quiser testar, descomente as linhas 171 a 180 e a 201.
+# conecte um cliente, escolha um nome e mande uma mensagem, pode ser mais de 1
 
 import socket
 import threading
@@ -19,6 +21,7 @@ clientes_lock = threading.Lock()
 clientes_conectados = []
 
 grupos_ativos = []
+
 grupos_lock = threading.Lock()
 
 
@@ -61,7 +64,8 @@ def consultar_clientes_conectados():
 
 
 def criar_grupo(nome_grupo, participantes):
-    """Cria um novo grupo com uma lista de clientes participantes"""
+    # TODO: "participantes" é uma tupla que contém o nome de usuário e o socket do cliente
+
     with grupos_lock:
         grupo = {
             "nome_grupo": nome_grupo,
@@ -71,15 +75,36 @@ def criar_grupo(nome_grupo, participantes):
         grupos_ativos.append(grupo)
         print(f"O grupo {grupo['nome_grupo']} foi criado com sucesso!")
 
-    # grupos_ativos [ {
+    # grupos_ativos [
+    # {
     #     'nome_grupo': 'Equipe de Desenvolvimento',
     #     'participantes': [
-    #         ('Gabriel', '124.12.12.0:21323'),
-    #         ('Renan', '192.168.1.100:50000'),
-    #         ('Ana', '10.0.0.5:12345')
-    #     ]
+    #         (nome_usuario, socket_cliente),
+    #         ('Renan', '<socket.socket (...))>',
+    #         ('AnaBea', '<socket.socket (...))>')
+    #                       ]
+    # },
+    # {
+    #     'nome_grupo': 'Equipe de Vendas',
+    #     'participantes': [
+    #         (nome_usuario, socket_cliente),
+    #         ('Marta', '<socket.socket (...))>'),
+    #         ('Carlos', '<socket.socket (...))>')
+    #                       ]
     # }
     #]
+
+def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem):
+    """Envia uma mensagem para todos os participantes de um grupo"""
+    mensagem = f"[{nome_grupo}] {nome_usuario}: {mensagem}"
+
+    for grupo in grupos_ativos:
+        if grupo['nome_grupo'] == nome_grupo:
+
+            for participante in grupo['participantes']:
+                nome_usuario, socket_cliente = participante
+                socket_cliente.sendall(mensagem.encode())
+                # print(mensagem
 
 
 def gerenciar_cliente(socket_cliente, endereco_cliente):
@@ -94,11 +119,11 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
             mensagem_boas_vindas = f"\nOlá, seja bem vindo! "
             socket_cliente.sendall(mensagem_boas_vindas.encode())
 
-            """Controla a execução do while"""
+            #Controla a execução do while
             bool_usuario_invalido = True
 
             while bool_usuario_invalido:
-                """recebe o nome de usuário do cliente"""
+                #recebe o nome de usuário do cliente
                 nome_usuario_data = socket_cliente.recv(1024)
                 nome_usuario = nome_usuario_data.decode().strip()
 
@@ -109,8 +134,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                         usuario_conectado = f'{cliente['nome_usuario']}'
 
                         if nome_usuario == usuario_conectado:
-                            print(f"\n{endereco_cliente}: O nome de usuário fornecido não estava disponível")
-                            print("Solicitando novo nome de usuário...\n")
+                            # print(f"\n{endereco_cliente}: O nome de usuário fornecido não estava disponível")
 
                             mensagem_resposta = f"nome_usuario is False"
                             socket_cliente.sendall(mensagem_resposta.encode())
@@ -126,18 +150,13 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                         break
 
                 else:
-                    """Primeiro usuário, então o nome está disponível"""
+                    #Primeiro usuário, então o nome está disponível
                     print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
 
                     mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
                     socket_cliente.sendall(mensagem_confirmacao.encode())
                     bool_usuario_invalido = False
                     break
-
-
-            # confirma criação do usuário
-            # mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-            # socket_cliente.sendall(mensagem_confirmacao.encode())
 
             # cria o registro dicionário do cliente
             with clientes_lock:
@@ -148,6 +167,16 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 }
                 adicionar_cliente(cliente_info)
 
+            """
+            grupo = {
+                    'nome_grupo': 'equipe',
+                    'participantes': [
+                        (nome_usuario, socket_cliente)
+                    ]
+                }
+
+            grupos_ativos.append(grupo)
+            """
 
             while True:
                 # Recebe dados do cliente
@@ -165,11 +194,12 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 data_comando = data.decode().lower().strip()
 
                 if data_comando in ['/exit', '/sair', '/quit', '/disconnect']:
-                    print(f"O cliente: {nome_usuario} se desconectou.")
                     remover_cliente(cliente_info)
                     return
 
-                # Envia resposta (eco)
+                # envia_mensagem_grupo("equipe", nome_usuario, "Olá grupo")
+
+                # Envia resposta constante (eco)
                 data_resposta = " "
                 socket_cliente.sendall(data_resposta.encode())
 
@@ -190,7 +220,6 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
 
 """Configuração Hotkeys"""
 keyboard.add_hotkey('ctrl+shift+b', consultar_clientes_conectados)
-
 
 
 """Programa principal que inicia e gerencia o servidor."""
@@ -221,7 +250,7 @@ try:
                 thread = threading.Thread(
                     target=gerenciar_cliente, args=(socket_cliente, endereco_cliente)
                 )
-                thread.daemon = True
+                thread.daemon = True # Permite que o programa principal saia mesmo se a thread estiver rodando
                 thread.start()
 
             except socket.timeout:
@@ -235,7 +264,3 @@ except Exception as e:
     print(f" ❌ Erro no servidor: {e}")
 finally:
     print("\n\n============ SERVIDOR ENCERRADO ============\n\n")
-
-
-# socket_cliente.shutdown(socket.SHUT_RDWR)
-# socket_cliente.close()
