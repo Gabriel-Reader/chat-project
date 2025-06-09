@@ -25,6 +25,44 @@ grupos_ativos = []
 grupos_lock = threading.Lock()
 
 
+def validar_nome_usuario(socket_cliente, endereco_cliente):
+    """Valida o nome de usuário recebido do cliente."""
+    try:
+        while True:
+            nome_usuario_data = socket_cliente.recv(1024)
+            nome_usuario = nome_usuario_data.decode().strip()
+
+            with clientes_lock:
+                if clientes_conectados:
+                    nome_existe = False
+
+                    for cliente in clientes_conectados:
+                        usuario_conectado = cliente['nome_usuario']
+
+                        if nome_usuario == usuario_conectado:
+                            mensagem_resposta = "nome_usuario is False"
+                            socket_cliente.sendall(mensagem_resposta.encode())
+                            nome_existe = True
+                            break
+
+                    if not nome_existe:
+                        print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
+                        mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                        socket_cliente.sendall(mensagem_confirmacao.encode())
+                        return nome_usuario # Nome válido, retorna
+
+                else:
+                    # Primeiro usuário, então o nome está disponível
+                    print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
+                    mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
+                    socket_cliente.sendall(mensagem_confirmacao.encode())
+                    return nome_usuario # Nome válido, retorna
+
+    except Exception as e:
+        print(f"❌ Ocorreu um erro ao tentar validar o nome de usuário do cliente {endereco_cliente}: {e}")
+        return None
+
+
 def adicionar_cliente(cliente_info):
     """Adiciona um novo cliente à lista de conectados."""
     clientes_conectados.append(cliente_info)
@@ -111,42 +149,8 @@ def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem, socket_remetente):
                     # print(mensagem
 
 
-def validar_nome_usuario(socket_cliente, endereco_cliente):
-    """Valida o nome de usuário recebido do cliente."""
-    try:
-        while True:
-            nome_usuario_data = socket_cliente.recv(1024)
-            nome_usuario = nome_usuario_data.decode().strip()
-
-            with clientes_lock:
-                if clientes_conectados:
-                    nome_existe = False
-
-                    for cliente in clientes_conectados:
-                        usuario_conectado = cliente['nome_usuario']
-
-                        if nome_usuario == usuario_conectado:
-                            mensagem_resposta = "nome_usuario is False"
-                            socket_cliente.sendall(mensagem_resposta.encode())
-                            nome_existe = True
-                            break
-
-                    if not nome_existe:
-                        print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
-                        mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-                        socket_cliente.sendall(mensagem_confirmacao.encode())
-                        return nome_usuario # Nome válido, retorna
-
-                else:
-                    # Primeiro usuário, então o nome está disponível
-                    print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
-                    mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
-                    socket_cliente.sendall(mensagem_confirmacao.encode())
-                    return nome_usuario # Nome válido, retorna
-
-    except Exception as e:
-        print(f"❌ Ocorreu um erro ao tentar validar o nome de usuário do cliente {endereco_cliente}: {e}")
-        return None
+def funcao_mostrar_grupos():
+    pass
 
 
 def gerenciar_cliente(socket_cliente, endereco_cliente):
@@ -215,6 +219,8 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 # verifica hotkey para consultar clientes
                 if keyboard.is_pressed('ctrl+shift+b'):
                     consultar_clientes_conectados()
+                elif keyboard.is_pressed('ctrl+shift+g'):
+                    funcao_mostrar_grupos()
 
 
     except ConnectionResetError:
@@ -229,6 +235,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
 
 """Configuração Hotkeys"""
 keyboard.add_hotkey('ctrl+shift+b', consultar_clientes_conectados)
+keyboard.add_hotkey('ctrl+shift+g', funcao_mostrar_grupos)
 
 
 """Programa principal que inicia e gerencia o servidor."""
