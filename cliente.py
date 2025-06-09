@@ -3,11 +3,9 @@ import threading
 
 HOST = '127.0.0.1'
 PORT = 12345
-
-# var para controlar a thread de recebimento
 rodando = True
 
-"""Thread para receber mensagens do servidor"""
+"""Thread para receber mensagens do servidor/usuários"""
 
 def receber_mensagens(socket_cliente):
     global rodando
@@ -20,7 +18,7 @@ def receber_mensagens(socket_cliente):
             break
 
         mensagem_recebida = mensagem_recebida.decode()
-        if mensagem_recebida.strip(): # ignora o eco que o servidor envia: " "
+        if mensagem_recebida.strip():  # ignora o eco que o servidor envia: " "
             print(f"{mensagem_recebida}")
 
 
@@ -76,7 +74,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
 
         print("\n💬  Chat iniciado! Digite (/sair ou /exit) para desconectar.\n")
 
-        while rodando:
+        while rodando:       # Loop de envio de mensagens
             mensagem = input()
             if not rodando:  # Verifica se a thread de recebimento encerrou a conexão
                 break
@@ -95,5 +93,3 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as socket_cliente:
         print(f"❌ Ocorreu um erro inesperado: {e}")
     finally:
         rodando = True
-        print("Encerrando cliente...")
-        socket_cliente.close()
