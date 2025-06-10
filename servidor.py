@@ -6,10 +6,6 @@ Descrição: Servidor TCP que gerencia múltiplos clientes para o serviço de ch
 Autores: Gabriel Pinheiro, Renan Hurtado
 """
 
-#TODO: Criei um teste com um grupo pré criado, todos os clientes que se conectarem no servidor
-# vão entrar no grupo, se quiser testar, descomente as linhas 171 a 180 e a 201.
-# conecte um cliente, escolha um nome e mande uma mensagem, pode ser mais de 1
-
 import socket
 import threading
 import keyboard
@@ -40,11 +36,13 @@ def validar_nome_usuario(socket_cliente, endereco_cliente):
                         usuario_conectado = cliente['nome_usuario']
 
                         if nome_usuario == usuario_conectado:
+                            """ Nome já existe, envia mensagem de erro ao cliente"""
                             mensagem_resposta = "nome_usuario is False"
                             socket_cliente.sendall(mensagem_resposta.encode())
                             nome_existe = True
                             break
 
+                    # Se o nome não existe, envia confirmação de sucesso 
                     if not nome_existe:
                         print(f"{endereco_cliente}: ✔ Nome de usuário disponível")
                         mensagem_confirmacao = f"Olá {nome_usuario}, seu usuário foi criado com sucesso! ☕"
@@ -121,16 +119,7 @@ def criar_grupo(nome_grupo, participantes):
     #         ('Renan', '<socket.socket (...))>',
     #         ('AnaBea', '<socket.socket (...))>')
     #                       ]
-    # },
-    # {
-    #     'nome_grupo': 'Equipe de Vendas',
-    #     'participantes': [
-    #         (nome_usuario, socket_cliente),
-    #         ('Marta', '<socket.socket (...))>'),
-    #         ('Carlos', '<socket.socket (...))>')
-    #                       ]
     # }
-    #]
 
 
 def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem, socket_remetente):
@@ -146,11 +135,61 @@ def envia_mensagem_grupo(nome_grupo, nome_usuario, mensagem, socket_remetente):
                 # Não envia a mensagem de volta para o remetente
                 if socket_participante != socket_remetente:
                     socket_participante.sendall(mensagem.encode())
-                    # print(mensagem
 
 
-def funcao_mostrar_grupos():
-    pass
+def entrar_grupo(nome_grupo, socket_cliente, nome_usuario):
+    """Adiciona um cliente a um grupo existente."""
+
+    with grupos_lock:
+        for grupo in grupos_ativos:
+            if grupo['nome_grupo'] == nome_grupo:
+
+                # Adiciona o usuário ao grupo
+                grupo['participantes'].append((nome_usuario, socket_cliente))
+                socket_cliente.sendall(f"\n✅ Você entrou no grupo '{nome_grupo}'.\n".encode())
+                return
+
+        # Se o grupo não existir
+        socket_cliente.sendall(f"\n❌ O grupo '{nome_grupo}' não existe.\n".encode())
+
+
+def remover_cliente_grupo(nome_grupo, socket_cliente, nome_usuario):
+    """Remove um cliente de um grupo existente."""
+
+    print(f"Removendo {nome_usuario} do grupo {nome_grupo}")
+    with grupos_lock:
+        for grupo in grupos_ativos:
+            if grupo['nome_grupo'] == nome_grupo:
+                # Remove o usuário do grupo, se existir
+                try:
+                    grupo['participantes'].remove((nome_usuario, socket_cliente))
+                except ValueError:
+                    print(f"Participante ({nome_usuario}) já não está no grupo {nome_grupo}.")
+                # Remove o grupo se não houver mais participantes
+                if not grupo['participantes']:
+                    grupos_ativos.remove(grupo)
+                    print(f"O grupo {nome_grupo} foi removido pois ficou vazio.")
+                break
+
+
+def consultar_grupos_ativos():
+    """Exibe a lista formatada de todos os grupos ativos no servidor e retorna a string para o cliente."""
+    print(f"\n{"─"*23} GRUPOS ATIVOS {"─"*23}\n")
+
+    with grupos_lock:
+        if not grupos_ativos:
+            print("❌ Nenhum grupo ativo no momento.\n")
+            return "❌ Nenhum grupo ativo no momento.\n"
+        else:
+            grupos_formatados = f'{"\n#":<4} {"NOME DO GRUPO":<30} {"PARTICIPANTES"}\n'
+            grupos_formatados += '='*67 + '\n'
+            for indice, grupo in enumerate(grupos_ativos, 1):
+                # Pega apenas os nomes dos usuários dos participantes
+                participantes_nomes = [p[0] for p in grupo['participantes']]
+                grupos_formatados += f"{indice:<4} {grupo['nome_grupo']:<30} {', '.join(participantes_nomes)}\n"
+            print(grupos_formatados)
+            return grupos_formatados
+    print("\n" + "─" * 67 + "\n")
 
 
 def gerenciar_cliente(socket_cliente, endereco_cliente):
@@ -175,25 +214,17 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 cliente_info = {
                     "socket": socket_cliente,
                     "endereco": endereco_cliente,
-                    "nome_usuario": nome_usuario
+                    "nome_usuario": nome_usuario,
+                    "grupo_atual": None
                 }
                 adicionar_cliente(cliente_info)
-
-
-            grupo = {
-                    'nome_grupo': 'equipe',
-                    'participantes': [
-                        (nome_usuario, socket_cliente)
-                    ]
-                }
-
-            grupos_ativos.append(grupo)
 
 
             while True:
                 # Recebe dados do cliente
                 data = socket_cliente.recv(1024)
 
+                
                 # verifica se o cliente se desconectou
                 if not data:
                     remover_cliente(cliente_info)
@@ -202,15 +233,73 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 mensagem_recebida = data.decode()
                 print(f"Recebido de {nome_usuario}: {mensagem_recebida}")
 
+                # ---Lógica para Comandos---
+                nome_novo_grupo = None
+
+                if mensagem_recebida.startswith('/criar:'):
+                    partes = mensagem_recebida.split(':', 1)
+
+                    if len(partes) > 1:
+                        nome_novo_grupo = partes[1].strip()
+
+                        if not nome_novo_grupo:
+                            socket_cliente.sendall("❌ Nome do grupo inválido.".encode())
+
+                        elif nome_novo_grupo in [grupo['nome_grupo'] for grupo in grupos_ativos]:
+                            socket_cliente.sendall(f"\n❌ O grupo '{nome_novo_grupo}' já existe.\n".encode())
+
+                        else:
+                            if cliente_info["grupo_atual"] != None:
+                                grupo_atual = cliente_info["grupo_atual"]
+                                remover_cliente_grupo(grupo_atual, socket_cliente, nome_usuario)
+
+                            # Adiciona o criador ao grupo
+                            criar_grupo(nome_novo_grupo, [(nome_usuario, socket_cliente)])
+                            socket_cliente.sendall(f"\n✅  Grupo '{nome_novo_grupo}' criado com sucesso e você foi adicionado.\n".encode())
+                            cliente_info["grupo_atual"] = nome_novo_grupo  # Atualiza o grupo atual
+
+                    else:
+                        socket_cliente.sendall("❌ Comando de grupo inválido. Use /criar:NomeDoGrupo".encode())
+                    # continue # Pula o resto do loop para evitar eco
+
+                elif mensagem_recebida == '/listar':
+                    lista_grupos = consultar_grupos_ativos()
+                    socket_cliente.sendall(lista_grupos.encode())
+
+                elif mensagem_recebida.startswith('/entrar:'):
+                    partes = mensagem_recebida.split(':', 1)
+
+                    if len(partes) > 1:
+                        nome_novo_grupo = partes[1].strip()
+
+
+                        if cliente_info["grupo_atual"] != None:
+                            grupo_atual = cliente_info["grupo_atual"]
+                            remover_cliente_grupo(grupo_atual, socket_cliente, nome_usuario)
+
+
+                        entrar_grupo(nome_novo_grupo, socket_cliente, nome_usuario)
+                        cliente_info["grupo_atual"] = nome_novo_grupo  # Atualiza o grupo atual
+                # --- Fim da Nova Lógica ---
+
                 # verifica comandos de desconexão
-                data = data.decode()
-                data_comando = data.lower().strip()
+                data_comando = mensagem_recebida.lower().strip()
 
                 if data_comando in ['/exit', '/sair', '/quit', '/disconnect']:
-                    remover_cliente(cliente_info)
+                    grupo_para_remover = cliente_info["grupo_atual"]
+                    # remover_cliente_grupo(grupo_para_remover, socket_cliente, nome_usuario)
+                    # remover_cliente(cliente_info)
                     return
+                
+                # verifica se a mensagem é um comando de grupo ou uma mensagem normal
+                # Se não for um comando, envia a mensagem para o grupo atual
+                if not mensagem_recebida.startswith('/'):
+                    grupo_atual = cliente_info.get("grupo_atual")
+                    if grupo_atual:
+                        envia_mensagem_grupo(grupo_atual, nome_usuario, mensagem_recebida, socket_cliente)
+                    else:
+                        socket_cliente.sendall("\n❌  Você precisa entrar em um grupo para enviar mensagens.\n".encode())    
 
-                envia_mensagem_grupo("equipe", nome_usuario, data, socket_cliente)
 
                 # Envia resposta constante (eco)
                 data_resposta = " "
@@ -220,7 +309,7 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
                 if keyboard.is_pressed('ctrl+shift+b'):
                     consultar_clientes_conectados()
                 elif keyboard.is_pressed('ctrl+shift+g'):
-                    funcao_mostrar_grupos()
+                    consultar_grupos_ativos()
 
 
     except ConnectionResetError:
@@ -230,12 +319,16 @@ def gerenciar_cliente(socket_cliente, endereco_cliente):
     except Exception as e:
         print(f"❌  Erro inesperado com {cliente_info["nome_usuario"]}: {e}")
     finally:
+           grupo_para_remover = cliente_info["grupo_atual"]
+           if grupo_para_remover is not None:
+                # Se o cliente estava em um grupo, remove ele do grupo
+                remover_cliente_grupo(grupo_para_remover, socket_cliente, nome_usuario)
            remover_cliente(cliente_info)
 
 
 """Configuração Hotkeys"""
 keyboard.add_hotkey('ctrl+shift+b', consultar_clientes_conectados)
-keyboard.add_hotkey('ctrl+shift+g', funcao_mostrar_grupos)
+keyboard.add_hotkey('ctrl+shift+g', consultar_grupos_ativos)
 
 
 """Programa principal que inicia e gerencia o servidor."""
@@ -251,8 +344,9 @@ try:
         """ interface do servidor """
         print(f"✔ Servidor TCP iniciado em {HOST}:{PORT}...\n")
         print(f"🔷════════════════════ Menu ═════════════════════🔷")
-        print(f" 1 - Consultar clientes conectados (Ctrl+Shift+B:)")
-        print(f" 2 - Encerrar o servidor (Ctrl+C)")
+        print(f" 1 - Consultar clientes conectados (Ctrl+Shift+B)")
+        print(f" 2 - Mostrar grupos ativos (Ctrl+Shift+G)")
+        print(f" 3 - Encerrar o servidor (Ctrl+C)")
         print(f"🔷═══════════════════════════════════════════════🔷")
 
 
